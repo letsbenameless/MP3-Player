@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+  backend:
+    build: ./backend
+    container_name: music-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - ./storage:/app/storage   # store MP3s locally, not in git
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    container_name: music-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15
+    container_name: music-db
+    restart: always
+    environment:
+      POSTGRES_USER: music_user
+      POSTGRES_PASSWORD: music_pass
+      POSTGRES_DB: music_app
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
