@@ -1,0 +1,9 @@
+use chromaprint to generate audio fingerprints, and acousticid to take the fingerprint and return metadata about the song so the mp3 is relabelled automatically, while flagging any songs that dont return a match to the original exportify list
+
+update download-lyric-videos to download songs based on a csv list obtained from exportify instead of existing mp3 files on my pc
+
+normalize gain on downloaded mp3 files
+
+allow for downloading collections of playlists for easy platform transfer for users
+
+test an account system on my home server
