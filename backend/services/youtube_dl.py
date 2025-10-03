@@ -84,6 +84,7 @@ def download_and_tag(track: dict[str, str], output_dir: Path) -> Optional[Path]:
     disc_number = (track.get("disc_number") or "").strip()
     isrc = (track.get("isrc") or "").strip()
     added_at = (track.get("added_at") or "").strip()
+    playlist_index = (track.get("playlist_index") or "").strip()
 
     if not name or not artists:
         LOGGER.warning("Skipping track with missing name/artist: %s", track)
@@ -154,6 +155,9 @@ def download_and_tag(track: dict[str, str], output_dir: Path) -> Optional[Path]:
                             audio["----:com.apple.iTunes:ISRC"] = [isrc.encode("utf-8")]
                         if added_at:
                             audio["\xa9cmt"] = added_at
+                        if playlist_index:
+                            # ✅ custom freeform tag for playlist order
+                            audio["----:com.apple.iTunes:PlaylistIndex"] = [playlist_index.encode("utf-8")]
 
                         audio.save()
                         LOGGER.info("Tagged metadata for %s", name)

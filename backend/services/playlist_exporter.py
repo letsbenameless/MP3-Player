@@ -35,6 +35,7 @@ import requests
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_PLAYLIST_URL = "https://api.spotify.com/v1/playlists/{playlist_id}"
 DEFAULT_FIELDS = (
+    "playlist_index",          # ✅ added new field
     "name",
     "artists",
     "album",
@@ -52,6 +53,7 @@ DEFAULT_FIELDS = (
 class PlaylistTrack:
     """Metadata for a playlist entry."""
 
+    playlist_index: int        # ✅ new field for position in playlist
     name: str
     artists: List[str]
     album: str
@@ -74,6 +76,7 @@ class PlaylistTrack:
         """Return a mapping ready for CSV writing."""
 
         return {
+            "playlist_index": str(self.playlist_index),
             "name": self.name,
             "artists": ", ".join(self.artists),
             "album": self.album,
@@ -155,11 +158,14 @@ def get_playlist_tracks(token: str, playlist_id: str, market: Optional[str] = No
 
     playlist_tracks: List[PlaylistTrack] = []
     tracks_payload = payload.get("tracks") or {}
+    index = 1   # ✅ playlist index counter
+
     while True:
         items = tracks_payload.get("items") or []
         for item in items:
             track = item.get("track") or {}
-            playlist_tracks.append(_parse_track(item, track))
+            playlist_tracks.append(_parse_track(item, track, index))
+            index += 1
 
         next_url = tracks_payload.get("next")
         if not next_url:
@@ -171,10 +177,11 @@ def get_playlist_tracks(token: str, playlist_id: str, market: Optional[str] = No
     return playlist_tracks
 
 
-def _parse_track(item: dict[str, Any], track: dict[str, Any]) -> PlaylistTrack:
+def _parse_track(item: dict[str, Any], track: dict[str, Any], index: int) -> PlaylistTrack:
     artists = [a.get("name", "") for a in track.get("artists", []) if isinstance(a, dict)]
     album = track.get("album") or {}
     return PlaylistTrack(
+        playlist_index=index,   # ✅ new
         name=str(track.get("name", "")),
         artists=artists,
         album=str(album.get("name", "")),
@@ -197,7 +204,6 @@ def write_csv(tracks: Iterable[PlaylistTrack], output_path: str, fields: Iterabl
         writer.writeheader()
         for row in rows:
             writer.writerow({key: row.get(key, "") for key in field_list})
-
 
 
 def main(argv: Optional[List[str]] = None) -> int:
