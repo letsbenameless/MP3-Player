@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "python": "C:\\Users\\letsbenameless\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
+    }
+  ]
+}

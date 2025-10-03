@@ -8,8 +8,8 @@ exporter.
 
 Usage example::
 
-    python -m backend.services.spotify_playlist_export \
-        --playlist https://open.spotify.com/playlist/<playlist_id> \
+    python -m backend.services.playlist_exporter.py \
+        --playlist https://open.spotify.com/playlist/65N5k6zoTqRRcUQ9u4HLzE?si=a9cef9229fe044f7 \
         --output my_playlist.csv
 
 Authentication uses the Client Credentials flow and expects

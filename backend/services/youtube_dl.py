@@ -1,154 +1,190 @@
 import os
-import acoustid
-import chromaprint
-import argparse
 import csv
 import logging
-from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Iterable, List, Optional, cast
+from tempfile import NamedTemporaryFile
 
 import yt_dlp
+from mutagen.mp4 import MP4
+from pydub import AudioSegment, silence
 
 LOGGER = logging.getLogger(__name__)
-ACOUSTID_API_KEY = os.getenv("ACOUSTID_API_KEY", "")
-
-
-def similar(a: str, b: str) -> float:
-    """Return a similarity ratio between two strings."""
-    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
-
-
-def identify_file(filepath: Path) -> Optional[dict[str, Any]]:
-    """Generate a Chromaprint fingerprint and query AcoustID for metadata."""
-    try:
-        duration, fp = chromaprint.encode_file(str(filepath))  # ✅ use acoustid wrapper
-        results = acoustid.lookup(
-            ACOUSTID_API_KEY, fp, duration, meta="recordings sources"
-        )
-        for result in results["results"]:
-            if "recordings" in result:
-                rec = result["recordings"][0]
-                title = rec.get("title", "")
-                artist = rec["artists"][0]["name"] if rec.get("artists") else ""
-                return {"title": title, "artist": artist, "score": result["score"]}
-    except Exception as e:
-        LOGGER.error("AcoustID lookup failed: %s", e)
-    return None
-
 
 # -----------------------------
 # CSV LOADER
 # -----------------------------
-def load_tracks_from_csv(csv_path: str) -> List[str]:
-    """Read Spotify CSV and return search queries for YouTube."""
-    queries: List[str] = []
+def load_tracks_from_csv(csv_path: str) -> List[dict[str, str]]:
+    """Read Spotify CSV and return rows as dicts."""
+    tracks: List[dict[str, str]] = []
     with open(csv_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            if row is None:
-                continue
-            name = (row.get("name") or "").strip()
-            artists = (row.get("artists") or "").strip()
-            if name and artists:
-                queries.append(f"{name} {artists} lyrics")
-            elif name:
-                queries.append(name)
-    return queries
+            if row:
+                tracks.append(row)
+    return tracks
 
 
 # -----------------------------
-# DOWNLOAD FUNCTIONS
+# TRIM SILENCE
 # -----------------------------
-def download_from_search(
-    query: str, output_dir: Path, expected_title: str = "", expected_artist: str = ""
-) -> Optional[Path]:
-    """Search YouTube for a track, fingerprint with AcoustID, and download only if it matches Spotify metadata."""
+def trim_silence_m4a(file_path: Path) -> Path:
+    """Trim leading and trailing silence from an M4A file using pydub and export as a proper MP4/M4A."""
+    try:
+        audio = AudioSegment.from_file(file_path)  # let ffmpeg detect container/codec
 
+        nonsilent_ranges = silence.detect_nonsilent(
+            audio,
+            min_silence_len=500,
+            silence_thresh=audio.dBFS - 40,
+            seek_step=1
+        )
+
+        if not nonsilent_ranges:
+            return file_path
+
+        start_trim = nonsilent_ranges[0][0]
+        end_trim = nonsilent_ranges[-1][1]
+        if end_trim - start_trim < 500:  # avoid over-trim to nothing
+            return file_path
+
+        trimmed = audio[start_trim:end_trim]
+
+        with NamedTemporaryFile(delete=False, suffix=".m4a") as tmp:
+            tmp_path = Path(tmp.name)
+
+        trimmed.export(
+            tmp_path,
+            format="mp4",              # MP4 container (correct for .m4a)
+            codec="aac",
+            bitrate="192k",
+            parameters=["-movflags", "+faststart"]
+        )
+
+        tmp_path.replace(file_path)
+        LOGGER.info("Trimmed & remuxed: %s", file_path)
+
+    except Exception as e:
+        LOGGER.error("Failed to trim silence for %s: %s", file_path, e)
+
+    return file_path
+
+
+# -----------------------------
+# DOWNLOAD + TAGGING
+# -----------------------------
+def download_and_tag(track: dict[str, str], output_dir: Path) -> Optional[Path]:
+    """Search YouTube for the track, download as M4A, trim silence, and tag with CSV metadata."""
+
+    name = (track.get("name") or "").strip()
+    artists = (track.get("artists") or "").strip()
+    album = (track.get("album") or "").strip()
+    year = (track.get("album_release_year") or "").strip()
+    track_number = (track.get("track_number") or "").strip()
+    disc_number = (track.get("disc_number") or "").strip()
+    isrc = (track.get("isrc") or "").strip()
+    added_at = (track.get("added_at") or "").strip()
+
+    if not name or not artists:
+        LOGGER.warning("Skipping track with missing name/artist: %s", track)
+        return None
+
+    queries = [f"{name} {artists} lyrics", f"{name} {artists}"]
     output_dir.mkdir(parents=True, exist_ok=True)
-    LOGGER.info("Searching for: %s", query)
 
     ydl_opts: dict[str, Any] = {
         "format": "bestaudio/best",
-        "outtmpl": str(output_dir / "%(title)s.%(ext)s"),
+        "outtmpl": str(output_dir / "%(title).200B.%(ext)s"),
         "noplaylist": True,
         "quiet": True,
+        "prefer_ffmpeg": True,
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
-                "preferredcodec": "opus",
-                "preferredquality": "160",
-            }
+                "preferredcodec": "aac",
+                "preferredquality": "192",
+            },
+            {
+                "key": "FFmpegMetadata",
+            },
         ],
+        "postprocessor_args": ["-movflags", "+faststart"],
     }
 
-    with yt_dlp.YoutubeDL(cast(dict[str, Any], ydl_opts)) as ydl:  # type: ignore[arg-type]
-        # Search top 5 candidates
-        search_results = ydl.extract_info(f"ytsearch5:{query}", download=False)
+    with yt_dlp.YoutubeDL(cast(dict[str, Any], ydl_opts)) as ydl:
+        for q in queries:
+            LOGGER.info("Searching for: %s", q)
+            search_results = ydl.extract_info(f"ytsearch5:{q}", download=False)
 
-        for entry in search_results.get("entries", []):
-            url = entry.get("webpage_url")
-            if not url:
-                continue
+            for entry in search_results.get("entries", []):
+                title = entry.get("title", "").lower()
+                uploader = (entry.get("uploader") or "").lower()
+                url = entry.get("webpage_url")
+                if not url:
+                    continue
 
-            LOGGER.info("Trying candidate: %s", url)
+                if (
+                    name.lower() in title and any(a.lower() in title for a in artists.split(","))
+                ) or any(a.lower() in uploader for a in artists.split(",")):
+                    LOGGER.info("Match found: %s (uploader: %s)", title, uploader)
 
-            # Download this candidate into temp file
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            opus_path = Path(filename).with_suffix(".opus")
+                    info = ydl.extract_info(url, download=True)
+                    filename = ydl.prepare_filename(info)
+                    m4a_path = Path(filename).with_suffix(".m4a")
 
-            # Run AcoustID fingerprint
-            meta = identify_file(opus_path)
-            if meta:
-                sim_title = similar(meta["title"], expected_title)
-                sim_artist = similar(meta["artist"], expected_artist)
-                LOGGER.info(
-                    "Candidate fingerprinted: %s - %s (score=%.2f, sim_title=%.2f, sim_artist=%.2f)",
-                    meta["artist"],
-                    meta["title"],
-                    meta["score"],
-                    sim_title,
-                    sim_artist,
-                )
+                    final_path = output_dir / f"{name}.m4a"
+                    if m4a_path.exists():
+                        m4a_path.rename(final_path)
 
-                # Accept if similarity high enough
-                if sim_title > 0.6 and sim_artist > 0.5:
-                    LOGGER.info("Accepted track: %s -> %s", query, opus_path)
-                    return opus_path
-                else:
-                    LOGGER.warning(
-                        "Rejected candidate (metadata mismatch): %s", opus_path
-                    )
-                    opus_path.unlink(missing_ok=True)  # delete file
-            else:
-                LOGGER.warning(
-                    "Rejected candidate (no AcoustID match): %s", opus_path
-                )
-                opus_path.unlink(missing_ok=True)
+                    trim_silence_m4a(final_path)
 
-    LOGGER.error("No suitable match found for query: %s", query)
+                    try:
+                        audio = MP4(final_path)
+                        audio["\xa9nam"] = name
+                        audio["\xa9ART"] = artists
+                        if album:
+                            audio["\xa9alb"] = album
+                        if year:
+                            audio["\xa9day"] = year
+                        if track_number and not (album.lower() == name.lower() and track_number == "1"):
+                            audio["trkn"] = [(int(track_number), 0)]
+                        if disc_number:
+                            audio["disk"] = [(int(disc_number), 0)]
+                        if isrc:
+                            audio["----:com.apple.iTunes:ISRC"] = [isrc.encode("utf-8")]
+                        if added_at:
+                            audio["\xa9cmt"] = added_at
+
+                        audio.save()
+                        LOGGER.info("Tagged metadata for %s", name)
+                    except Exception as e:
+                        LOGGER.error("Failed to tag metadata for %s: %s", name, e)
+
+                    return final_path
+
+            LOGGER.info("No match found for query: %s", q)
+
+    LOGGER.error("No suitable match found for track: %s - %s", artists, name)
     return None
 
 
-def process_queries(queries: Iterable[str], output_directory: str) -> List[Path]:
-    """Download all provided search queries into output_directory as Opus files."""
-
+# -----------------------------
+# PROCESS ALL TRACKS
+# -----------------------------
+def process_tracks(tracks: Iterable[dict[str, str]], output_directory: str) -> List[Path]:
     output_dir = Path(output_directory)
     downloaded: List[Path] = []
 
-    for query in queries:
+    for track in tracks:
         try:
-            result = download_from_search(query, output_dir)
-            if result is not None:  # ✅ only append non-None
+            result = download_and_tag(track, output_dir)
+            if result:
                 downloaded.append(result)
-        except Exception as exc:  # defensive logging
-            LOGGER.exception("Failed to download %s: %s", query, exc)
+        except Exception as exc:
+            LOGGER.exception("Failed to process track %s: %s", track, exc)
 
     if downloaded:
-        LOGGER.info(
-            "Saved %d track(s) to %s as .opus files", len(downloaded), output_dir
-        )
+        LOGGER.info("Saved %d track(s) to %s as .m4a files", len(downloaded), output_dir)
     else:
         LOGGER.warning("No tracks were downloaded into %s", output_dir)
 
@@ -158,47 +194,23 @@ def process_queries(queries: Iterable[str], output_directory: str) -> List[Path]
 # -----------------------------
 # CLI
 # -----------------------------
-def build_argument_parser() -> argparse.ArgumentParser:
-    """Create an argument parser for the downloader CLI."""
-
-    parser = argparse.ArgumentParser(description="Download audio tracks as Opus files")
-
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument(
-        "--csv",
-        help="Path to Spotify-exported CSV (from playlist_exporter.py).",
-    )
-    group.add_argument(
-        "urls",
-        nargs="*",
-        help="One or more YouTube URLs to download directly.",
-    )
-
-    parser.add_argument(
-        "-o",
-        "--output-directory",
-        default="downloads",
-        help=(
-            "Directory where downloaded tracks will be stored as .opus files. "
-            "The directory will be created if it does not already exist."
-        ),
-    )
+def build_argument_parser():
+    import argparse
+    parser = argparse.ArgumentParser(description="Download audio tracks as M4A files with metadata and silence trimming")
+    parser.add_argument("--csv", required=True, help="Path to Spotify-exported CSV (from playlist_exporter.py).")
+    parser.add_argument("-o", "--output-directory", default="downloads", help="Output directory for M4A files.")
     return parser
 
 
-def main(argv: List[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     parser = build_argument_parser()
     args = parser.parse_args(argv)
 
-    # Basic logging setup if not configured by the host app
     if not logging.getLogger().handlers:
         logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    if args.csv:
-        queries = load_tracks_from_csv(args.csv)
-        process_queries(queries, args.output_directory)
-    else:
-        process_queries(args.urls, args.output_directory)
+    tracks = load_tracks_from_csv(args.csv)
+    process_tracks(tracks, args.output_directory)
 
     return 0
 
