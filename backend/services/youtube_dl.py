@@ -2,8 +2,9 @@ import os
 import csv
 import logging
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, cast
+from typing import Any, Iterable, List, Optional
 from tempfile import NamedTemporaryFile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import yt_dlp
 from mutagen.mp4 import MP4
@@ -31,7 +32,7 @@ def load_tracks_from_csv(csv_path: str) -> List[dict[str, str]]:
 def trim_silence_m4a(file_path: Path) -> Path:
     """Trim leading and trailing silence from an M4A file using pydub and export as a proper MP4/M4A."""
     try:
-        audio = AudioSegment.from_file(file_path)  # let ffmpeg detect container/codec
+        audio = AudioSegment.from_file(file_path)
 
         nonsilent_ranges = silence.detect_nonsilent(
             audio,
@@ -45,7 +46,7 @@ def trim_silence_m4a(file_path: Path) -> Path:
 
         start_trim = nonsilent_ranges[0][0]
         end_trim = nonsilent_ranges[-1][1]
-        if end_trim - start_trim < 500:  # avoid over-trim to nothing
+        if end_trim - start_trim < 500:
             return file_path
 
         trimmed = audio[start_trim:end_trim]
@@ -55,7 +56,7 @@ def trim_silence_m4a(file_path: Path) -> Path:
 
         trimmed.export(
             tmp_path,
-            format="mp4",              # MP4 container (correct for .m4a)
+            format="mp4",
             codec="aac",
             bitrate="192k",
             parameters=["-movflags", "+faststart"]
@@ -84,7 +85,6 @@ def download_and_tag(track: dict[str, str], output_dir: Path) -> Optional[Path]:
     disc_number = (track.get("disc_number") or "").strip()
     isrc = (track.get("isrc") or "").strip()
     added_at = (track.get("added_at") or "").strip()
-    playlist_index = (track.get("playlist_index") or "").strip()
 
     if not name or not artists:
         LOGGER.warning("Skipping track with missing name/artist: %s", track)
@@ -112,10 +112,10 @@ def download_and_tag(track: dict[str, str], output_dir: Path) -> Optional[Path]:
         "postprocessor_args": ["-movflags", "+faststart"],
     }
 
-    with yt_dlp.YoutubeDL(cast(dict[str, Any], ydl_opts)) as ydl:
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         for q in queries:
             LOGGER.info("Searching for: %s", q)
-            search_results = ydl.extract_info(f"ytsearch5:{q}", download=False)
+            search_results = ydl.extract_info(f"ytsearch3:{q}", download=False)
 
             for entry in search_results.get("entries", []):
                 title = entry.get("title", "").lower()
@@ -155,9 +155,6 @@ def download_and_tag(track: dict[str, str], output_dir: Path) -> Optional[Path]:
                             audio["----:com.apple.iTunes:ISRC"] = [isrc.encode("utf-8")]
                         if added_at:
                             audio["\xa9cmt"] = added_at
-                        if playlist_index:
-                            # ✅ custom freeform tag for playlist order
-                            audio["----:com.apple.iTunes:PlaylistIndex"] = [playlist_index.encode("utf-8")]
 
                         audio.save()
                         LOGGER.info("Tagged metadata for %s", name)
@@ -173,19 +170,25 @@ def download_and_tag(track: dict[str, str], output_dir: Path) -> Optional[Path]:
 
 
 # -----------------------------
-# PROCESS ALL TRACKS
+# PROCESS ALL TRACKS (parallelized)
 # -----------------------------
-def process_tracks(tracks: Iterable[dict[str, str]], output_directory: str) -> List[Path]:
+def process_tracks(tracks: Iterable[dict[str, str]], output_directory: str, workers: int = 4) -> List[Path]:
     output_dir = Path(output_directory)
     downloaded: List[Path] = []
 
-    for track in tracks:
-        try:
-            result = download_and_tag(track, output_dir)
-            if result:
-                downloaded.append(result)
-        except Exception as exc:
-            LOGGER.exception("Failed to process track %s: %s", track, exc)
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_track = {
+            executor.submit(download_and_tag, track, output_dir): track for track in tracks
+        }
+
+        for future in as_completed(future_to_track):
+            track = future_to_track[future]
+            try:
+                result = future.result()
+                if result:
+                    downloaded.append(result)
+            except Exception as exc:
+                LOGGER.exception("Failed to process track %s: %s", track, exc)
 
     if downloaded:
         LOGGER.info("Saved %d track(s) to %s as .m4a files", len(downloaded), output_dir)
@@ -203,6 +206,7 @@ def build_argument_parser():
     parser = argparse.ArgumentParser(description="Download audio tracks as M4A files with metadata and silence trimming")
     parser.add_argument("--csv", required=True, help="Path to Spotify-exported CSV (from playlist_exporter.py).")
     parser.add_argument("-o", "--output-directory", default="downloads", help="Output directory for M4A files.")
+    parser.add_argument("-w", "--workers", type=int, default=4, help="Number of parallel workers for search/download/tagging.")
     return parser
 
 
@@ -214,7 +218,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     tracks = load_tracks_from_csv(args.csv)
-    process_tracks(tracks, args.output_directory)
+    process_tracks(tracks, args.output_directory, args.workers)
 
     return 0
 

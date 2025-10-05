@@ -1,3 +1,4 @@
 C:\Users\letsbenameless\AppData\Local\Programs\Python\Python311\python.exe backend\services\youtube_dl.py --csv my_playlist.csv -o downloads
+C:\Users\rocka\AppData\Local\Programs\Python\Python311\python.exe backend\services\youtube_dl.py --csv my_playlist.csv -o downloads
 
-python -m backend.services.playlist_exporter --playlist https://open.spotify.com/playlist/1sL0V8KpgqIZuXU5XyZWmW?si=143a30893a324438 --output my_playlist.csv
+python -m backend.services.playlist_exporter --playlist https://open.spotify.com/playlist/0dKz4Z51uscR39tTXp3j9f?si=3c4570ad2d954a9f --output my_playlist.csv
