@@ -10,8 +10,8 @@ load_dotenv()
 # Type alias for execute params
 Params = Optional[Union[Sequence[Any], Dict[str, Any]]]
 
-@contextmanager
-def get_db() -> MySQLConnection:
+@contextmanager # type: ignore
+def get_db() -> MySQLConnection: # type: ignore
     """Context manager for MySQL connection."""
     conn = mysql.connector.connect(
         host=os.getenv("DB_HOST", "localhost"),
@@ -20,7 +20,7 @@ def get_db() -> MySQLConnection:
         database=os.getenv("DB_NAME", "mp3_player")
     )
     try:
-        yield conn
+        yield conn # type: ignore
     finally:
         conn.close()
 

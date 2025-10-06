@@ -1,1 +1,4 @@
 py -3.11 -m main --playlist https://open.spotify.com/playlist/{playlist_id} --user michael
+py -3.11 -m main --playlist https://open.spotify.com/playlist/2tWdL4x0mk5qxOFJi5J3mF?si=cc542c0a2e124fd8 --user michael
+py -3.11 -m main --playlist  --user michael
+py -3.11 -m main --playlist  --user michael

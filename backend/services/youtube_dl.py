@@ -126,7 +126,7 @@ def download_and_tag(track: dict[str, str], output_dir: Path, user_id: int) -> O
         "postprocessor_args": ["-movflags", "+faststart"],
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl: # type: ignore
         for q in queries:
             LOGGER.info("Searching for: %s", q)
             search_results = ydl.extract_info(f"ytsearch3:{q}", download=False)
@@ -186,7 +186,7 @@ def download_and_tag(track: dict[str, str], output_dir: Path, user_id: int) -> O
                         record_download(
                             user_id=user_id,
                             track=track,
-                            youtube_info=info,
+                            youtube_info=info, # type: ignore
                             filepath=str(final_path),
                             checksum=checksum,
                             spotify_id=spotify_id,

@@ -54,7 +54,7 @@ def main() -> None:
     csv_path.parent.mkdir(parents=True, exist_ok=True)
 
     logging.info("Exporting playlist from Spotify...")
-    playlist_info, tracks = spotify_export.export_playlist(args.playlist, csv_path)
+    playlist_info, tracks = spotify_export.export_playlist(args.playlist, csv_path) # type: ignore
     logging.info(f"Exported playlist '{playlist_info['name']}' with {len(tracks)} track(s)")
 
     # --- Step 3: download tracks from YouTube

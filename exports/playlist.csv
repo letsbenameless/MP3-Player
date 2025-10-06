@@ -1,18 +1,34 @@
 playlist_index,name,artists,album,album_release_year,duration_ms,track_number,disc_number,isrc,spotify_track_url,added_at
-1,360,Charli xcx,BRAT,2024,133805,1,1,USAT22401341,https://open.spotify.com/track/4w2GLmK2wnioVnb5CPQeex,2024-09-18T02:26:38Z
-2,Club classics,Charli xcx,BRAT,2024,153526,2,1,USAT22401342,https://open.spotify.com/track/0CySZwyRJ0vyUqtSjM9i2k,2024-09-18T02:26:38Z
-3,Sympathy is a knife,Charli xcx,BRAT,2024,151125,3,1,USAT22401343,https://open.spotify.com/track/5c9tBmJKbTdn1vhzXHeAwW,2024-09-18T02:26:38Z
-4,I might say something stupid,Charli xcx,BRAT,2024,109202,4,1,USAT22401344,https://open.spotify.com/track/0PFZCt7UNmpas24HejQGu8,2024-09-18T02:26:38Z
-5,Talk talk,Charli xcx,BRAT,2024,161757,5,1,USAT22401345,https://open.spotify.com/track/62fqMvguJbsSs9HKhhRfuS,2024-09-18T02:26:38Z
-6,Von dutch,Charli xcx,BRAT,2024,164284,6,1,USAT22313737,https://open.spotify.com/track/3Y1EvIgEVw51XtgNEgpz5c,2024-09-18T02:26:38Z
-7,Everything is romantic,Charli xcx,BRAT,2024,203482,7,1,USAT22401346,https://open.spotify.com/track/5sMEEjviCkH6Rp5X2ZvIIc,2024-09-18T02:26:38Z
-8,Rewind,Charli xcx,BRAT,2024,168443,8,1,USAT22401347,https://open.spotify.com/track/50GxvQA2KEWNt31EdwIlzY,2024-09-18T02:26:38Z
-9,So I,Charli xcx,BRAT,2024,211352,9,1,USAT22401348,https://open.spotify.com/track/0AkiAfilrTUXV49dleC5SB,2024-09-18T02:26:38Z
-10,"Girl, so confusing",Charli xcx,BRAT,2024,174507,10,1,USAT22401349,https://open.spotify.com/track/41krZZovstMJKeJZJtbL78,2024-09-18T02:26:38Z
-11,Apple,Charli xcx,BRAT,2024,151739,11,1,USAT22401350,https://open.spotify.com/track/19RybK6XDbAVpcdxSbZL1o,2024-09-18T02:26:38Z
-12,B2b,Charli xcx,BRAT,2024,178579,12,1,USAT22401351,https://open.spotify.com/track/4wTvw1dBiPXNiHTh0zzpcI,2024-09-18T02:26:38Z
-13,Mean girls,Charli xcx,BRAT,2024,189410,13,1,USAT22401352,https://open.spotify.com/track/1qKCO2Tocwg8CbepJ9uDtd,2024-09-18T02:26:38Z
-14,I think about it all the time,Charli xcx,BRAT,2024,135878,14,1,USAT22401353,https://open.spotify.com/track/3OaFGqHUyxGVkOcSILw8Kx,2024-09-18T02:26:38Z
-15,365,Charli xcx,BRAT,2024,203618,15,1,USAT22401354,https://open.spotify.com/track/5h68SoVFGleijCtjEja3xG,2024-09-18T02:26:38Z
-16,Lose Control,PLAT.,Lose Control,2023,157241,1,1,USLD91758048,https://open.spotify.com/track/4FobM3SwTThgWFOGq8xxgj,2024-09-18T02:26:43Z
-17,two,bbno$,two,2024,135212,1,1,QM24S2405396,https://open.spotify.com/track/6DRZmJa38MaMNthwG3fCBD,2025-01-20T18:59:43Z
+1,Home,David Fleming,Superman (Original Motion Picture Soundtrack),2025,121915,1,1,USNLR2500562,https://open.spotify.com/track/2rkHYobqK83HH92SAJI6dp,2025-10-06T21:37:42Z
+2,Last Son,David Fleming,Superman (Original Motion Picture Soundtrack),2025,165837,2,1,USNLR2500563,https://open.spotify.com/track/6CJHa7KcYR430ei2kATUi7,2025-10-06T21:37:42Z
+3,Hammer of Boravia,David Fleming,Superman (Original Motion Picture Soundtrack),2025,182211,3,1,USNLR2500564,https://open.spotify.com/track/0pGIJNyhRgbggSEZrYRFLN,2025-10-06T21:37:42Z
+4,LuthorCorp,John Murphy,Superman (Original Motion Picture Soundtrack),2025,96798,4,1,USNLR2500565,https://open.spotify.com/track/21465ehfRJKP5byKm5J5w1,2025-10-06T21:37:42Z
+5,The Daily Planet,David Fleming,Superman (Original Motion Picture Soundtrack),2025,54182,5,1,USNLR2500566,https://open.spotify.com/track/0AXuLoZm7tzczIfuUjdE46,2025-10-06T21:37:42Z
+6,Lois & Clark,John Murphy,Superman (Original Motion Picture Soundtrack),2025,67866,6,1,USNLR2500567,https://open.spotify.com/track/3VN3DWKlu5qaZTTHTMSVeE,2025-10-06T21:37:42Z
+7,Eyes Up Here,David Fleming,Superman (Original Motion Picture Soundtrack),2025,141938,7,1,USNLR2500568,https://open.spotify.com/track/2h26oqC6Q0XRLqInFayQNY,2025-10-06T21:37:42Z
+8,Justice Gang vs. Kaiju,David Fleming,Superman (Original Motion Picture Soundtrack),2025,203349,8,1,USNLR2500569,https://open.spotify.com/track/6S8sbKseHxrgAILMlZG840,2025-10-06T21:37:42Z
+9,Intruders,David Fleming,Superman (Original Motion Picture Soundtrack),2025,204761,9,1,USNLR2500570,https://open.spotify.com/track/53ebRTyzbggMTx8bxp6IOk,2025-10-06T21:37:42Z
+10,The Message,"David Fleming, John Murphy",Superman (Original Motion Picture Soundtrack),2025,162589,10,1,USNLR2500571,https://open.spotify.com/track/2MpDc3LoAxLh4ntwODVAYI,2025-10-06T21:37:42Z
+11,Secret Harem,"David Fleming, John Murphy",Superman (Original Motion Picture Soundtrack),2025,139734,11,1,USNLR2500572,https://open.spotify.com/track/0myGDgvC4BfigvIVP7yN1F,2025-10-06T21:37:42Z
+12,The Real Punk Rock,John Murphy,Superman (Original Motion Picture Soundtrack),2025,88819,12,1,USNLR2500573,https://open.spotify.com/track/5Py5Hr18bMVXn0hEXa2AnV,2025-10-06T21:37:42Z
+13,Pocket Universe,David Fleming,Superman (Original Motion Picture Soundtrack),2025,114685,13,1,USNLR2500574,https://open.spotify.com/track/42rUEU5Y8jZlbyjb59TAyH,2025-10-06T21:37:42Z
+14,5 Years Time,Noah And The Whale,Superman (Original Motion Picture Soundtrack),2025,213933,14,1,GBUM70804501,https://open.spotify.com/track/1axD1SDuKI1z8B0lD8fKoM,2025-10-06T21:37:42Z
+15,Something Like a Sun,"David Fleming, John Murphy",Superman (Original Motion Picture Soundtrack),2025,138959,15,1,USNLR2500575,https://open.spotify.com/track/1nltSAbsFjxkIsYr0MYvX2,2025-10-06T21:37:42Z
+16,Jailbreak,David Fleming,Superman (Original Motion Picture Soundtrack),2025,65901,16,1,USNLR2500576,https://open.spotify.com/track/43Eoms2MeGeFGSu8uRzCrK,2025-10-06T21:37:42Z
+17,The River Pi,David Fleming,Superman (Original Motion Picture Soundtrack),2025,205277,17,1,USNLR2500577,https://open.spotify.com/track/5xhPMlVpw5LT69CurzyLoe,2025-10-06T21:37:42Z
+18,Take the T-Craft,"David Fleming, John Murphy",Superman (Original Motion Picture Soundtrack),2025,98146,18,1,USNLR2500578,https://open.spotify.com/track/1CtUQFh8RexNQenaWlJoxy,2025-10-06T21:37:42Z
+19,"Your Choices, Your Actions",David Fleming,Superman (Original Motion Picture Soundtrack),2025,174562,19,1,USNLR2500579,https://open.spotify.com/track/5aZS1JFmphEWv9hw51itcz,2025-10-06T21:37:42Z
+20,Raising the Flag,John Murphy,Superman (Original Motion Picture Soundtrack),2025,108716,20,1,USNLR2500580,https://open.spotify.com/track/53eIFP8hQeRf2iGK2i54kE,2025-10-06T21:37:42Z
+21,The Rift,David Fleming,Superman (Original Motion Picture Soundtrack),2025,292470,21,1,USNLR2500581,https://open.spotify.com/track/24pyd4hEUgjhhQvx2XBDYB,2025-10-06T21:37:42Z
+22,Bases Loaded,David Fleming,Superman (Original Motion Picture Soundtrack),2025,187156,22,1,USNLR2500582,https://open.spotify.com/track/1poTSeFZqFUYgglcu7TX9N,2025-10-06T21:37:42Z
+23,Speeding Bullet,David Fleming,Superman (Original Motion Picture Soundtrack),2025,121549,23,1,USNLR2500583,https://open.spotify.com/track/73cu33UbloLCO4KRPrr24g,2025-10-06T21:37:42Z
+24,Remote Control,"David Fleming, John Murphy",Superman (Original Motion Picture Soundtrack),2025,181560,24,1,USNLR2500584,https://open.spotify.com/track/0luP8gJQVg4Z2EOQfxDnQS,2025-10-06T21:37:42Z
+25,Upgrade,"David Fleming, John Murphy",Superman (Original Motion Picture Soundtrack),2025,72884,25,1,USNLR2500585,https://open.spotify.com/track/4gM0bUFX9V5HPzjwE10zWx,2025-10-06T21:37:42Z
+26,Driven by Envy,"David Fleming, John Murphy",Superman (Original Motion Picture Soundtrack),2025,124012,26,1,USNLR2500586,https://open.spotify.com/track/3mMQExY3pLWFUUinrKqAeU,2025-10-06T21:37:42Z
+27,Look Up,David Fleming,Superman (Original Motion Picture Soundtrack),2025,165266,27,1,USNLR2500587,https://open.spotify.com/track/6XRecICOZG5JullCrILGxg,2025-10-06T21:37:42Z
+28,Being Human,David Fleming,Superman (Original Motion Picture Soundtrack),2025,117188,28,1,USNLR2500588,https://open.spotify.com/track/5SxRfrzO9CpMSJLaX0AVtY,2025-10-06T21:37:42Z
+29,Luthor the Traitor,John Murphy,Superman (Original Motion Picture Soundtrack),2025,110843,29,1,USNLR2500589,https://open.spotify.com/track/0rksZWnKJiTAHrgxLSYueo,2025-10-06T21:37:42Z
+30,Metropolis,"David Fleming, John Murphy",Superman (Original Motion Picture Soundtrack),2025,77428,30,1,USNLR2500590,https://open.spotify.com/track/6nRZv8OBfMcCxkK4ULR0WS,2025-10-06T21:37:42Z
+31,Walking on Air,John Murphy,Superman (Original Motion Picture Soundtrack),2025,94145,31,1,USNLR2500591,https://open.spotify.com/track/0MeIQlWZIDJeRlOgRuYJsU,2025-10-06T21:37:42Z
+32,Punkrocker (feat. Iggy Pop),"Teddybears, Iggy Pop",Superman (Original Motion Picture Soundtrack),2025,246786,32,1,USAT20611879,https://open.spotify.com/track/0lIk8y1IWq3yesP2c472b6,2025-10-06T21:37:42Z
+33,The Mighty Crabjoys Theme (feat. Lou Lou Safran & Foxy Shazam),"The Mighty Crabjoys, Foxy Shazam, Lou Lou Safran",Superman (Original Motion Picture Soundtrack),2025,76451,33,1,USNLR2500592,https://open.spotify.com/track/3r6yewphAnnKsBXsHFFSSW,2025-10-06T21:37:42Z
