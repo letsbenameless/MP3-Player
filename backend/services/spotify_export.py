@@ -19,6 +19,7 @@ Dashboard <https://developer.spotify.com/dashboard>`_.
 """
 
 from __future__ import annotations
+from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv()  # this reads .env in the current working directory
@@ -72,23 +73,21 @@ class PlaylistTrack:
         year_fragment = self.album_release_date[:4]
         return year_fragment if year_fragment.isdigit() else None
 
-    def to_row(self) -> Dict[str, str]:
-        """Return a mapping ready for CSV writing."""
-
-        return {
-            "playlist_index": str(self.playlist_index),
-            "name": self.name,
-            "artists": ", ".join(self.artists),
-            "album": self.album,
-            "album_release_year": self.album_release_year or "",
-            "duration_ms": str(self.duration_ms),
-            "track_number": "" if self.track_number is None else str(self.track_number),
-            "disc_number": "" if self.disc_number is None else str(self.disc_number),
-            "isrc": self.isrc or "",
-            "spotify_track_url": self.spotify_track_url,
-            "added_at": self.added_at or "",
-        }
-
+def to_row(self) -> Dict[str, str]:
+    return {
+        "spotify_id": self.spotify_track_url.split("/")[-1],  # ✅ extract ID
+        "playlist_index": str(self.playlist_index),
+        "name": self.name,
+        "artists": ", ".join(self.artists),
+        "album": self.album,
+        "album_release_year": self.album_release_year or "",
+        "duration_ms": str(self.duration_ms),
+        "track_number": "" if self.track_number is None else str(self.track_number),
+        "disc_number": "" if self.disc_number is None else str(self.disc_number),
+        "isrc": self.isrc or "",
+        "spotify_track_url": self.spotify_track_url,
+        "added_at": self.added_at or "",
+    }
 
 def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -231,6 +230,25 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"Exported {len(tracks)} tracks to {args.output}")
     return 0
 
+def export_playlist(playlist_url: str, output_path: str, market: Optional[str] = None):
+    """Programmatic version of the Spotify export — returns playlist info + track list."""
+    client_id = os.getenv("SPOTIFY_CLIENT_ID")
+    client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise RuntimeError("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set in the environment")
+
+    playlist_id = extract_playlist_id(playlist_url)
+    token = fetch_access_token(client_id, client_secret)
+    tracks = get_playlist_tracks(token, playlist_id, market=market)
+    write_csv(tracks, output_path, DEFAULT_FIELDS)
+
+    playlist_info = {
+        "id": playlist_id,
+        "name": Path(output_path).stem,
+        "track_count": len(tracks),
+    }
+
+    return playlist_info, [t.to_row() for t in tracks]
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
     sys.exit(main())
