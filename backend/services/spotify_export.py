@@ -1,28 +1,19 @@
-"""Generate a CSV export for a Spotify playlist using the Web API.
+"""
+Export Spotify playlists, albums, or individual tracks to CSV using the Web API.
 
-This utility eliminates the manual Exportify step by talking directly to the
-Spotify Web API.  Provide a playlist URL or identifier and the script will
-retrieve track metadata (name, artists, album, release year, duration, etc.)
-and write it to a CSV file that mirrors the data required by the YouTube
-exporter.
-
-Usage example::
-
-    python -m backend.services.playlist_exporter.py \
-        --playlist https://open.spotify.com/playlist/65N5k6zoTqRRcUQ9u4HLzE?si=a9cef9229fe044f7 \
+Usage (CLI):
+    python -m backend.services.spotify_exporter \
+        --input https://open.spotify.com/playlist/65N5k6zoTqRRcUQ9u4HLzE \
         --output my_playlist.csv
 
-Authentication uses the Client Credentials flow and expects
-``SPOTIFY_CLIENT_ID`` and ``SPOTIFY_CLIENT_SECRET`` to be present in the
-environment.  You can create these values from the `Spotify Developer
-Dashboard <https://developer.spotify.com/dashboard>`_.
+Programmatic usage:
+    from backend.services.spotify_exporter import export_spotify
+    info, tracks = export_spotify("https://open.spotify.com/album/1ATL5GLyefJaxhQzSPVrLX", "album.csv")
 """
 
 from __future__ import annotations
 from pathlib import Path
-
 from dotenv import load_dotenv
-load_dotenv()  # this reads .env in the current working directory
 
 import argparse
 import csv
@@ -30,13 +21,17 @@ import os
 import sys
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Any
-
 import requests
+
+load_dotenv()
 
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_PLAYLIST_URL = "https://api.spotify.com/v1/playlists/{playlist_id}"
+SPOTIFY_ALBUM_URL = "https://api.spotify.com/v1/albums/{album_id}/tracks"
+SPOTIFY_TRACK_URL = "https://api.spotify.com/v1/tracks/{track_id}"
+
 DEFAULT_FIELDS = (
-    "playlist_index",          # ✅ added new field
+    "playlist_index",
     "name",
     "artists",
     "album",
@@ -52,9 +47,7 @@ DEFAULT_FIELDS = (
 
 @dataclass
 class PlaylistTrack:
-    """Metadata for a playlist entry."""
-
-    playlist_index: int        # ✅ new field for position in playlist
+    playlist_index: int
     name: str
     artists: List[str]
     album: str
@@ -74,8 +67,6 @@ class PlaylistTrack:
         return year_fragment if year_fragment.isdigit() else None
 
     def to_row(self) -> Dict[str, str]:
-        """Return a mapping ready for CSV writing."""
-
         return {
             "playlist_index": str(self.playlist_index),
             "name": self.name,
@@ -92,46 +83,31 @@ class PlaylistTrack:
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Export Spotify playlist metadata to CSV.",
-    )
-    parser.add_argument(
-        "--playlist",
-        required=True,
-        help="Spotify playlist URL or identifier.",
-    )
-    parser.add_argument(
-        "--output",
-        required=True,
-        help="Path to the CSV file that will be written.",
-    )
-    parser.add_argument(
-        "--fields",
-        nargs="*",
-        choices=DEFAULT_FIELDS,
-        default=list(DEFAULT_FIELDS),
-        help="Subset of metadata columns to include in the CSV (default: all).",
-    )
-    parser.add_argument(
-        "--market",
-        help="ISO market code for track relinking (optional).",
-    )
+    parser = argparse.ArgumentParser(description="Export Spotify metadata to CSV.")
+    parser.add_argument("--input", required=True, help="Spotify playlist, album, or track URL/ID.")
+    parser.add_argument("--output", required=True, help="Path to output CSV file.")
+    parser.add_argument("--fields", nargs="*", choices=DEFAULT_FIELDS, default=list(DEFAULT_FIELDS))
+    parser.add_argument("--market", help="ISO market code (optional).")
     return parser
 
 
-def extract_playlist_id(raw: str) -> str:
-    """Normalize the input to a plain playlist ID."""
+# ──────────────────────────────────────────────────────────────────────────────
+# API Authentication and Helpers
+# ──────────────────────────────────────────────────────────────────────────────
 
+def extract_spotify_id(raw: str) -> tuple[str, str]:
+    """Detect if it's a playlist, album, or track, and return (type, id)."""
     if "open.spotify.com" in raw:
         parts = raw.split("?")[0].rstrip("/").split("/")
-        if parts and parts[-2] == "playlist":
-            return parts[-1]
-    return raw
+        if len(parts) >= 2:
+            typ, sid = parts[-2], parts[-1]
+            if typ in ("playlist", "album", "track"):
+                return typ, sid
+    return "playlist", raw
 
 
 def fetch_access_token(client_id: str, client_secret: str) -> str:
-    """Retrieve an OAuth token via the client credentials flow."""
-
+    """Retrieve a Spotify API access token."""
     response = requests.post(
         SPOTIFY_TOKEN_URL,
         data={"grant_type": "client_credentials"},
@@ -139,27 +115,50 @@ def fetch_access_token(client_id: str, client_secret: str) -> str:
         timeout=10,
     )
     response.raise_for_status()
-    payload = response.json()
-    token = payload.get("access_token")
+    token = response.json().get("access_token")
     if not token:
-        raise RuntimeError("Spotify did not return an access token")
+        raise RuntimeError("Spotify did not return an access token.")
     return token
 
 
-def get_playlist_tracks(token: str, playlist_id: str, market: Optional[str] = None) -> List[PlaylistTrack]:
-    """Fetch all tracks from a playlist."""
+# ──────────────────────────────────────────────────────────────────────────────
+# Fetchers for each Spotify object type
+# ──────────────────────────────────────────────────────────────────────────────
 
+def get_spotify_tracks(token: str, object_id: str, kind: str, market: Optional[str] = None) -> List[PlaylistTrack]:
     headers = {"Authorization": f"Bearer {token}"}
     params = {"market": market} if market else {}
-    url = SPOTIFY_PLAYLIST_URL.format(playlist_id=playlist_id)
 
+    if kind == "playlist":
+        return _get_playlist_tracks(headers, object_id, params)
+    elif kind == "album":
+        return _get_album_tracks(headers, object_id, params)
+    elif kind == "track":
+        return [_get_single_track(headers, object_id, params)]
+    else:
+        raise ValueError(f"Unsupported Spotify type: {kind}")
+
+
+def _get_playlist_tracks(headers: dict, playlist_id: str, params: dict):
+    """Fetch playlist metadata and all tracks."""
+    url = SPOTIFY_PLAYLIST_URL.format(playlist_id=playlist_id)
     response = requests.get(url, headers=headers, params=params, timeout=10)
     response.raise_for_status()
     payload = response.json()
 
+    # 🎵 Playlist metadata
+    playlist_info = {
+        "id": playlist_id,
+        "name": payload.get("name"),
+        "description": payload.get("description"),
+        "owner": (payload.get("owner") or {}).get("display_name"),
+        "total_tracks": (payload.get("tracks") or {}).get("total"),
+    }
+
+    # 🎶 Tracks
     playlist_tracks: List[PlaylistTrack] = []
     tracks_payload = payload.get("tracks") or {}
-    index = 1   # ✅ playlist index counter
+    index = 1
 
     while True:
         items = tracks_payload.get("items") or []
@@ -167,7 +166,6 @@ def get_playlist_tracks(token: str, playlist_id: str, market: Optional[str] = No
             track = item.get("track") or {}
             playlist_tracks.append(_parse_track(item, track, index))
             index += 1
-
         next_url = tracks_payload.get("next")
         if not next_url:
             break
@@ -175,82 +173,146 @@ def get_playlist_tracks(token: str, playlist_id: str, market: Optional[str] = No
         response.raise_for_status()
         tracks_payload = response.json()
 
-    return playlist_tracks
+    return playlist_info, playlist_tracks
 
 
-def _parse_track(item: dict[str, Any], track: dict[str, Any], index: int) -> PlaylistTrack:
+def _get_album_tracks(headers: dict, album_id: str, params: dict) -> List[PlaylistTrack]:
+    """Fetch *all* tracks from an album, following pagination if necessary."""
+    album_info = requests.get(
+        f"https://api.spotify.com/v1/albums/{album_id}",
+        headers=headers, params=params, timeout=10
+    )
+    album_info.raise_for_status()
+    album_payload = album_info.json()
+
+    tracks: List[PlaylistTrack] = []
+    index = 1
+    next_url = SPOTIFY_ALBUM_URL.format(album_id=album_id)
+
+    while next_url:
+        response = requests.get(next_url, headers=headers, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        for t in data.get("items", []):
+            tracks.append(_parse_track({"added_at": None}, t, index, album_payload))
+            index += 1
+
+        # Follow pagination
+        next_url = data.get("next")
+
+    return tracks
+
+
+def _get_single_track(headers: dict, track_id: str, params: dict) -> PlaylistTrack:
+    response = requests.get(SPOTIFY_TRACK_URL.format(track_id=track_id), headers=headers, params=params, timeout=10)
+    response.raise_for_status()
+    data = response.json()
+    return _parse_track({"added_at": None}, data, 1)
+
+
+def _parse_track(item: dict[str, Any], track: dict[str, Any], index: int, album_fallback: Optional[dict] = None) -> PlaylistTrack:
     artists = [a.get("name", "") for a in track.get("artists", []) if isinstance(a, dict)]
-    album = track.get("album") or {}
+    album = track.get("album") or album_fallback or {}
     return PlaylistTrack(
-        playlist_index=index,   # ✅ new
+        playlist_index=index,
         name=str(track.get("name", "")),
         artists=artists,
         album=str(album.get("name", "")),
         album_release_date=album.get("release_date"),
         duration_ms=int(track.get("duration_ms") or 0),
-        track_number=int(track["track_number"]) if "track_number" in track else None,
-        disc_number=int(track["disc_number"]) if "disc_number" in track else None,
+        track_number=int(track.get("track_number", 0) or 0),
+        disc_number=int(track.get("disc_number", 0) or 0),
         isrc=(track.get("external_ids") or {}).get("isrc"),
         spotify_track_url=(track.get("external_urls") or {}).get("spotify", ""),
         added_at=str(item.get("added_at")) if item.get("added_at") else None,
     )
 
 
-def write_csv(tracks: Iterable[PlaylistTrack], output_path: str, fields: Iterable[str]) -> None:
-    rows = [track.to_row() for track in tracks]
+# ──────────────────────────────────────────────────────────────────────────────
+# CSV Writer + Unified Exporter
+# ──────────────────────────────────────────────────────────────────────────────
+
+def write_csv(tracks: Iterable[PlaylistTrack], output_path: str, fields: Iterable[str],
+              playlist_info: Optional[dict] = None) -> None:
+    """
+    Write playlist or track metadata to a CSV file.
+    If playlist_info is provided, write it as a header section first.
+    """
+    rows = [t.to_row() for t in tracks]
     field_list = list(fields)
 
     with open(output_path, "w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=field_list)
-        writer.writeheader()
+        writer = csv.writer(handle)
+
+        # ─── Playlist metadata header ─────────────────────────────
+        if playlist_info:
+            writer.writerow(["Playlist Name:", playlist_info.get("name", "")])
+            writer.writerow(["Owner:", playlist_info.get("owner", "")])
+            writer.writerow(["Description:", playlist_info.get("description", "")])
+            writer.writerow(["Total Tracks:", playlist_info.get("total_tracks", "")])
+            writer.writerow([])  # Blank line before track table
+
+        # ─── Track table ──────────────────────────────────────────
+        dict_writer = csv.DictWriter(handle, fieldnames=field_list)
+        dict_writer.writeheader()
         for row in rows:
-            writer.writerow({key: row.get(key, "") for key in field_list})
+            dict_writer.writerow({k: row.get(k, "") for k in field_list})
 
 
-def main(argv: Optional[List[str]] = None) -> int:
-    parser = build_argument_parser()
-    args = parser.parse_args(argv)
-
-    client_id = os.getenv("SPOTIFY_CLIENT_ID")
-    client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
-    if not client_id or not client_secret:
-        parser.error("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set in the environment")
-
-    playlist_id = extract_playlist_id(args.playlist)
-
-    try:
-        token = fetch_access_token(client_id, client_secret)
-        tracks = get_playlist_tracks(token, playlist_id, market=args.market)
-        write_csv(tracks, args.output, args.fields)
-    except requests.HTTPError as exc:
-        print(f"Spotify API request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
-        return 1
-    except Exception as exc:  # pragma: no cover - safety net for CLI usage
-        print(f"Error exporting playlist: {exc}", file=sys.stderr)
-        return 1
-
-    print(f"Exported {len(tracks)} tracks to {args.output}")
-    return 0
-
-def export_playlist(playlist_url: str, output_path: str, market: Optional[str] = None):
-    """Programmatic version of the Spotify export — returns playlist info + track list."""
+def export_spotify(url: str, output_path: str, market: Optional[str] = None, token: Optional[str] = None):
+    """
+    Export a playlist, album, or track to CSV.
+    If `token` is provided, it will be used directly (for user-private data).
+    Otherwise, client credentials flow is used.
+    """
     client_id = os.getenv("SPOTIFY_CLIENT_ID")
     client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
     if not client_id or not client_secret:
         raise RuntimeError("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set in the environment")
 
-    playlist_id = extract_playlist_id(playlist_url)
-    token = fetch_access_token(client_id, client_secret)
-    tracks = get_playlist_tracks(token, playlist_id, market=market)
-    write_csv(tracks, output_path, DEFAULT_FIELDS)
+    kind, object_id = extract_spotify_id(url)
 
-    playlist_info = {
-        "id": playlist_id,
-        "name": Path(output_path).stem,
+    # Use user token if given, else fall back to client credentials
+    if token:
+        bearer_token = token
+    else:
+        bearer_token = fetch_access_token(client_id, client_secret)
+
+    playlist_info = None
+
+    # ─── Handle playlists, albums, and tracks ──────────────────────────────
+    if kind == "playlist":
+        playlist_info, tracks = get_spotify_tracks(bearer_token, object_id, kind, market)
+        name = playlist_info.get("name", "Unknown Playlist")
+    else:
+        playlist_info = {"id": object_id, "name": None, "type": kind}
+        tracks = get_spotify_tracks(bearer_token, object_id, kind, market)
+        name = Path(output_path).stem
+
+    write_csv(tracks, output_path, DEFAULT_FIELDS, playlist_info)
+
+    info = {
+        "type": kind,
+        "id": object_id,
+        "name": name,
         "track_count": len(tracks),
+        "source_info": playlist_info,
     }
+    return info, [t.to_row() for t in tracks]
 
-    return playlist_info, [t.to_row() for t in tracks]
 
-if __name__ == "__main__":  # pragma: no cover - CLI entry point
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = build_argument_parser()
+    args = parser.parse_args(argv)
+    try:
+        export_spotify(args.input, args.output, args.market)
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    print(f"Exported Spotify {args.input} → {args.output}")
+    return 0
+
+
+if __name__ == "__main__":
     sys.exit(main())

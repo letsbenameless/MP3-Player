@@ -1,4 +1,5 @@
-py -3.11 -m main --playlist https://open.spotify.com/playlist/{playlist_id} --user michael
-py -3.11 -m main --playlist https://open.spotify.com/playlist/2tWdL4x0mk5qxOFJi5J3mF?si=cc542c0a2e124fd8 --user michael
-py -3.11 -m main --playlist  --user michael
-py -3.11 -m main --playlist  --user michael
+py -3.11 -m main --youtube "https://www.youtube.com/watch?v=3Aj5Bv37GqU" --user michael
+py -3.11 -m main --youtube "Deep Purple Live at Knebworth 1985" --user michael
+py -3.11 -m main --playlist https://open.spotify.com/playlist/1fpl1OJaZsVRsNLwhpdTsX?si=097440d9e7c042ae --user michael
+
+python -m backend.services.spotify_export --input https://open.spotify.com/playlist/1sL0V8KpgqIZuXU5XyZWmW?si=e51bb38caab84a09 --output single.csv

@@ -39,6 +39,16 @@ CREATE TABLE `tracks` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------
+-- ARTISTS
+-- ------------------------------------------------------
+CREATE TABLE IF NOT EXISTS youtube_channels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    artist_name VARCHAR(255) NOT NULL UNIQUE,
+    channel_url VARCHAR(512),
+    last_checked DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ------------------------------------------------------
 -- DOWNLOADS
 -- ------------------------------------------------------
 CREATE TABLE `downloads` (

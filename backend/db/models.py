@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from typing import Any, Dict, Optional, Sequence, Union
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -93,6 +94,28 @@ def get_or_create_track(track: Dict[str, Any]) -> int:
         track.get("duration_ms")
     ))
 
+def get_artist_channel(artist_name: str) -> str:
+    """Return cached YouTube channel URL for an artist if it exists."""
+    row = fetch_one(
+        "SELECT channel_url FROM youtube_channels WHERE artist_name=%s",
+        (artist_name,)
+    )
+    if row and row.get("channel_url"):
+        return row["channel_url"]
+    return ""
+
+def set_artist_channel(artist_name: str, channel_url: str) -> None:
+    """Insert or update a channel cache entry for the given artist."""
+    execute(
+        """
+        INSERT INTO youtube_channels (artist_name, channel_url, last_checked)
+        VALUES (%s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            channel_url = VALUES(channel_url),
+            last_checked = VALUES(last_checked)
+        """,
+        (artist_name, channel_url, datetime.utcnow())
+    )
 
 def link_track_to_playlist(playlist_id: int, track_id: int, order: int) -> None:
     execute("""
