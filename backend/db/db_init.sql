@@ -49,6 +49,23 @@ CREATE TABLE IF NOT EXISTS youtube_channels (
 );
 
 -- ------------------------------------------------------
+-- EXPORT LOGS (per user)
+-- ------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `exports` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `user_id` INT NOT NULL,
+  `started_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `finished_at` TIMESTAMP NULL DEFAULT NULL,
+  `total_playlists` INT DEFAULT 0,
+  `total_albums` INT DEFAULT 0,
+  `total_tracks` INT DEFAULT 0,
+  `status` ENUM('success','partial','failed') DEFAULT 'success',
+  PRIMARY KEY (`id`),
+  CONSTRAINT `exports_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------
 -- DOWNLOADS
 -- ------------------------------------------------------
 CREATE TABLE `downloads` (
@@ -104,6 +121,43 @@ CREATE TABLE `playlist_tracks` (
   PRIMARY KEY (`playlist_id`,`track_id`),
   CONSTRAINT `playlist_tracks_ibfk_1` FOREIGN KEY (`playlist_id`) REFERENCES `playlists` (`id`) ON DELETE CASCADE,
   CONSTRAINT `playlist_tracks_ibfk_2` FOREIGN KEY (`track_id`) REFERENCES `tracks` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------
+-- USER_PLAYLISTS (ownership or follows)
+-- ------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `user_playlists` (
+  `user_id` INT NOT NULL,
+  `playlist_id` INT NOT NULL,
+  `is_owner` TINYINT(1) DEFAULT 0,
+  PRIMARY KEY (`user_id`, `playlist_id`),
+  CONSTRAINT `user_playlists_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `user_playlists_ibfk_2` FOREIGN KEY (`playlist_id`) REFERENCES `playlists` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------
+-- ALBUMS + ALBUM_TRACKS
+-- ------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `albums` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `spotify_id` VARCHAR(255) COLLATE utf8mb4_unicode_ci UNIQUE,
+  `name` VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `artist` VARCHAR(255) COLLATE utf8mb4_unicode_ci,
+  `release_year` VARCHAR(10) COLLATE utf8mb4_unicode_ci,
+  `spotify_url` VARCHAR(512) COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `album_tracks` (
+  `album_id` INT NOT NULL,
+  `track_id` INT NOT NULL,
+  `track_number` INT,
+  `disc_number` INT,
+  PRIMARY KEY (`album_id`,`track_id`),
+  CONSTRAINT `album_tracks_ibfk_1` FOREIGN KEY (`album_id`) REFERENCES `albums` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `album_tracks_ibfk_2` FOREIGN KEY (`track_id`) REFERENCES `tracks` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------

@@ -5,7 +5,7 @@ import csv
 
 # Internal modules
 from backend.db import models
-from backend.services import spotify_export, youtube_dl
+from backend.services import spotify_single_export, youtube_downloader
 
 LOGGER = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def main() -> None:
     # --- YouTube direct mode ---
     if args.youtube:
         LOGGER.info("Running in YouTube direct-download mode...")
-        youtube_dl.fast_youtube_download(
+        youtube_downloader.fast_youtube_download(
             urls=args.youtube,
             output_dir=args.output_directory,
             username=args.user,
@@ -85,13 +85,13 @@ def main() -> None:
     csv_path.parent.mkdir(parents=True, exist_ok=True)
 
     LOGGER.info("Exporting playlist from Spotify...")
-    playlist_info, tracks = spotify_export.export_playlist(args.playlist, csv_path)  # type: ignore
+    playlist_info, tracks = spotify_single_export.export_playlist(args.playlist, csv_path)  # type: ignore
     LOGGER.info(f"Exported playlist '{playlist_info['name']}' with {len(tracks)} track(s).")
 
     # --- YouTube link enrichment ---
     if not args.skip_search:
         LOGGER.info("Searching YouTube for all tracks (lyrics prioritized)...")
-        results = youtube_dl.search_youtube_links(tracks)
+        results = youtube_downloader.search_youtube_links(tracks)
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=[*tracks[0].keys(), "youtube_url"])
             writer.writeheader()
@@ -117,7 +117,7 @@ def main() -> None:
 
     # --- Download all URLs ---
     LOGGER.info("Starting YouTube downloads for %d tracks...", len(urls))
-    youtube_dl.fast_youtube_download(
+    youtube_downloader.fast_youtube_download(
         urls=urls,
         output_dir=args.output_directory,
         username=args.user,
