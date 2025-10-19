@@ -25,27 +25,33 @@ def normalize_name(s: str) -> str:
 # ─────────────────────────────────────────────
 
 def find_or_cache_artist_channel(artist: str) -> str:
-    """Get a YouTube channel for an artist, caching in DB if not found."""
+    """
+    Get the YouTube channel for an artist, caching in DB if not found.
+    Broad search (no 'official channel' restriction).
+    Works with both /channel/ and /@handle URLs.
+    """
     cached = models.get_artist_channel(artist)
     if cached:
         return cached
 
+    artist_norm = normalize_name(artist)
+    best_url = ""
+    best_similarity = 0.0
+
+    # Use a general channel search (not "official channel")
     cmd = [
         "yt-dlp",
-        f"ytsearch5:{artist} official channel",
+        f"ytsearch20:{artist}",
         "--flat-playlist",
         "--dump-json",
         "--quiet",
     ]
+
     try:
         output = subprocess.check_output(cmd, text=True, errors="ignore")
     except subprocess.CalledProcessError:
-        LOGGER.warning("Failed to search channel for %s", artist)
+        LOGGER.warning("Failed to search YouTube for %s", artist)
         return ""
-
-    artist_norm = normalize_name(artist)
-    best_match_url = ""
-    best_similarity = 0.0
 
     for line in output.splitlines():
         try:
@@ -53,22 +59,28 @@ def find_or_cache_artist_channel(artist: str) -> str:
         except json.JSONDecodeError:
             continue
 
-        if "channel" not in data.get("url", ""):
+        url = data.get("url", "")
+        title = data.get("title", "")
+        if not url or "youtube.com" not in url:
             continue
 
-        title = data.get("title", "")
+        # Only consider actual channel or handle results
+        if "/channel/" not in url and "/@" not in url:
+            continue
+
         title_norm = normalize_name(title)
+        # Simple similarity metric (common prefix length / max len)
         matches = sum(a == b for a, b in zip(artist_norm, title_norm))
         similarity = matches / max(len(artist_norm), len(title_norm), 1)
 
         if similarity > best_similarity:
             best_similarity = similarity
-            best_match_url = data["url"]
+            best_url = url
 
-    if best_match_url:
-        models.set_artist_channel(artist, best_match_url)
-        LOGGER.info("✅ Cached channel for %s (%.2f match): %s", artist, best_similarity, best_match_url)
-        return best_match_url
+    if best_url:
+        models.set_artist_channel(artist, best_url)
+        LOGGER.info("✅ Cached channel for %s (%.2f match): %s", artist, best_similarity, best_url)
+        return best_url
 
     LOGGER.warning("⚠️ No good channel found for %s", artist)
     return ""
